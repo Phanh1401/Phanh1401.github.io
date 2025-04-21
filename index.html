@@ -3,110 +3,72 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebGIS - Upload File & Kéo Thả</title>
+    <title>WebGIS với Tìm kiếm & Thêm Layer GeoJSON</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
     <style>
-        #map { height: 100vh; width: 100%; }
-        #dropZone {
-            position: absolute;
-            z-index: 999;
-            top: 10px;
-            left: 10px;
-            background: rgba(255,255,255,0.9);
-            padding: 10px 15px;
-            border: 2px dashed #666;
-            border-radius: 8px;
-            font-size: 14px;
-            color: #333;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 8px;
+        #map {
+            height: 100vh;
+            width: 100%;
         }
     </style>
 </head>
 <body>
+    <div id="map"></div>
 
-<div id="dropZone">
-    📂 Kéo thả hoặc 
-    <label style="background:#007bff;color:white;padding:3px 8px;border-radius:4px;cursor:pointer;">
-        chọn file
-        <input type="file" id="fileInput" style="display:none;">
-    </label>
-</div>
-<div id="map"></div>
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+    <script src="https://unpkg.com/leaflet-omnivore/dist/leaflet-omnivore.min.js"></script>  <!-- Thêm thư viện Omnivore cho KML -->
 
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-<script src="https://unpkg.com/@mapbox/leaflet-omnivore/leaflet-omnivore.min.js"></script>
-<script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+    <script>
+        // Khởi tạo bản đồ
+        var map = L.map('map').setView([21.0285, 105.8544], 13);
 
-<script>
-    var map = L.map('map').setView([21.0285, 105.8544], 6);
+        // Lớp nền OpenStreetMap
+        var osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        });
 
-    var osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors'
-    }).addTo(map);
+        // Thêm lớp mặc định
+        osm.addTo(map);
 
-    var esri = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-        attribution: '© Esri, Maxar, Earthstar Geographics'
-    });
+        // Layer Control
+        var baseMaps = {
+            "OpenStreetMap": osm
+        };
+        L.control.layers(baseMaps).addTo(map);
 
-    var carto = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-        attribution: '© CartoDB'
-    });
+        // Thêm thanh tìm kiếm địa điểm
+        var geocoder = L.Control.geocoder({
+            defaultMarkGeocode: false
+        })
+        .on('markgeocode', function(e) {
+            var bbox = e.geocode.bbox;
+            var poly = L.polygon([
+                bbox.getSouthEast(),
+                bbox.getNorthEast(),
+                bbox.getNorthWest(),
+                bbox.getSouthWest()
+            ]).addTo(map);
+            map.fitBounds(poly.getBounds());
+            poly.bindPopup('<b>' + e.geocode.name + '</b>').openPopup();
+        })
+        .addTo(map);
 
-    L.control.layers({
-        "OpenStreetMap": osm,
-        "Esri World Imagery": esri,
-        "CartoDB Light": carto
-    }).addTo(map);
+        // Thêm file GeoJSON vào bản đồ
+        var geojsonLayer = L.geoJSON(null, {
+            onEachFeature: function (feature, layer) {
+                if (feature.properties && feature.properties.name) {
+                    layer.bindPopup(feature.properties.name);
+                }
+            }
+        }).addTo(map);
 
-    var marker = L.marker([21.0285, 105.8544]).addTo(map);
-    marker.bindPopup("<b>Chào bạn!</b><br>Đây là Hà Nội.").openPopup();
-
-    L.Control.geocoder({
-        defaultMarkGeocode: false
-    })
-    .on('markgeocode', function(e) {
-        var bbox = e.geocode.bbox;
-        var poly = L.polygon([
-            bbox.getSouthEast(),
-            bbox.getNorthEast(),
-            bbox.getNorthWest(),
-            bbox.getSouthWest()
-        ]).addTo(map);
-        map.fitBounds(poly.getBounds());
-        poly.bindPopup('<b>' + e.geocode.name + '</b>').openPopup();
-    })
-    .addTo(map);
-
-    var uploadedLayer;
-
-    function handleFile(file) {
-        if (uploadedLayer) map.removeLayer(uploadedLayer);
-
-        var reader = new FileReader();
-        reader.onload = function(e) {
-            var fileName = file.name.toLowerCase();
-            var content = e.target.result;
-
-            if (fileName.endsWith('.geojson') || fileName.endsWith('.json')) {
-                uploadedLayer = L.geoJSON(JSON.parse(content), {
-                    onEachFeature: function(feature, layer) {
-                        var props = feature.properties;
-                        var popup = "<b>Thuộc tính:</b><br>";
-                        for (var key in props) {
-                            popup += `${key}: ${props[key]}<br>`;
-                        }
-                        layer.bindPopup(popup);
-                    }
-                }).addTo(map);
-                map.fitBounds(uploadedLayer.getBounds());
-
-            } else if (fileName.endsWith('.kml') || fileName.endsWith('.gpx')) {
-                uploadedLayer = omnivore[fileName.endsWith('.kml') ? 'kml' : 'gpx'].parse(content).on('ready', function() {
-                    map.fitBounds(uploadedLayer.getBounds());
-                    uploadedLayer.eachLayer(function(layer) {
-                        if (layer.feature && layer.feature.properties) {
-                            var props = layer.feature
+        // Tải file GeoJSON từ URL hoặc file địa phương
+        fetch('data.geojson')  // Thay 'data.geojson' với đường dẫn tới file của bạn
+            .then(response => response.json())
+            .then(data => geojsonLayer.addData(data))
+            .catch(error => console.log('Lỗi khi tải GeoJSON:', error));
+    </script>
+</body>
+</html>
