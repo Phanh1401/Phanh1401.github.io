@@ -27,7 +27,11 @@
 
         // Thêm marker vào bản đồ
         var marker = L.marker([20.98914, 105.7956]).addTo(map);
-        marker.bindPopup("<b>HANU!</b><br>HANU brings you to the world.").openPopup();
+        marker.bindPopup("<b>HANU!</b><br>HANU brings you to the world").openPopup();
+         // Thêm thanh tìm kiếm
+        L.Control.geocoder({
+            defaultMarkGeocode: true
+        }).addTo(map);
     </script>
 </body>
 </html>
