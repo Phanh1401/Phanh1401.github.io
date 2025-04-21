@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebGIS Cơ Bản với Leaflet do Phanh tao</title>
+    <title>WebGIS: Lớp nền + Tìm kiếm + Marker</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
     <style>
         #map {
             height: 100vh;
@@ -16,22 +17,57 @@
     <div id="map"></div>
 
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
     <script>
         // Khởi tạo bản đồ
-        var map = L.map('map').setView([21.0285, 105.8544], 13);  // Hà Nội làm ví dụ
+        var map = L.map('map').setView([21.0285, 105.8544], 13);
 
-        // Thêm lớp bản đồ nền
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        // Lớp nền OpenStreetMap
+        var osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors'
-        }).addTo(map);
+        });
 
-        // Thêm marker vào bản đồ
-        var marker = L.marker([20.98914, 105.7956]).addTo(map);
-        marker.bindPopup("<b>HANU!</b><br>HANU brings you to the world").openPopup();
-         // Thêm thanh tìm kiếm
-        L.Control.geocoder({
-            defaultMarkGeocode: true
-        }).addTo(map);
+        // Lớp nền Esri World Imagery
+        var esri = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            attribution: '© Esri, Maxar, Earthstar Geographics'
+        });
+
+        // Lớp nền CartoDB Light
+        var carto = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+            attribution: '© CartoDB'
+        });
+
+        // Thêm lớp mặc định
+        osm.addTo(map);
+
+        // Layer Control
+        var baseMaps = {
+            "OpenStreetMap": osm,
+            "Esri World Imagery": esri,
+            "CartoDB Light": carto
+        };
+        L.control.layers(baseMaps).addTo(map);
+
+        // Marker mẫu
+        var marker = L.marker([21.0285, 105.8544]).addTo(map);
+        marker.bindPopup("<b>Chào bạn!</b><br>Đây là Hà Nội.").openPopup();
+
+        // Thanh tìm kiếm địa điểm
+        var geocoder = L.Control.geocoder({
+            defaultMarkGeocode: false
+        })
+        .on('markgeocode', function(e) {
+            var bbox = e.geocode.bbox;
+            var poly = L.polygon([
+                bbox.getSouthEast(),
+                bbox.getNorthEast(),
+                bbox.getNorthWest(),
+                bbox.getSouthWest()
+            ]).addTo(map);
+            map.fitBounds(poly.getBounds());
+            poly.bindPopup('<b>' + e.geocode.name + '</b>').openPopup();
+        })
+        .addTo(map);
     </script>
 </body>
 </html>
