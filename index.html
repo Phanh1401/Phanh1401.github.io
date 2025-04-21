@@ -3,71 +3,146 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebGIS: Lớp nền + Tìm kiếm + Marker</title>
+    <title>WebGIS Full Combo</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
     <style>
-        #map {
-            height: 100vh;
-            width: 100%;
+        #map { height: 100vh; width: 100%; }
+        #dropZone {
+            position: absolute;
+            z-index: 999;
+            top: 10px;
+            left: 10px;
+            background: rgba(255,255,255,0.9);
+            padding: 8px 15px;
+            border: 2px dashed #666;
+            border-radius: 8px;
+            font-size: 14px;
+            color: #333;
+            cursor: pointer;
         }
     </style>
 </head>
 <body>
-    <div id="map"></div>
 
-    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-    <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
-    <script>
-        // Khởi tạo bản đồ
-        var map = L.map('map').setView([21.0285, 105.8544], 13);
+<div id="dropZone">📂 Kéo thả file GeoJSON, KML, GPX vào đây!</div>
+<div id="map"></div>
 
-        // Lớp nền OpenStreetMap
-        var osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors'
-        });
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="https://unpkg.com/@mapbox/leaflet-omnivore/leaflet-omnivore.min.js"></script>
+<script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
 
-        // Lớp nền Esri World Imagery
-        var esri = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-            attribution: '© Esri, Maxar, Earthstar Geographics'
-        });
+<script>
+    // Khởi tạo bản đồ
+    var map = L.map('map').setView([21.0285, 105.8544], 6);
 
-        // Lớp nền CartoDB Light
-        var carto = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-            attribution: '© CartoDB'
-        });
+    // Lớp nền
+    var osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
 
-        // Thêm lớp mặc định
-        osm.addTo(map);
+    var esri = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: '© Esri, Maxar, Earthstar Geographics'
+    });
 
-        // Layer Control
-        var baseMaps = {
-            "OpenStreetMap": osm,
-            "Esri World Imagery": esri,
-            "CartoDB Light": carto
+    var carto = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        attribution: '© CartoDB'
+    });
+
+    L.control.layers({
+        "OpenStreetMap": osm,
+        "Esri World Imagery": esri,
+        "CartoDB Light": carto
+    }).addTo(map);
+
+    // Marker mẫu
+    var marker = L.marker([21.0285, 105.8544]).addTo(map);
+    marker.bindPopup("<b>Chào bạn!</b><br>Đây là Hà Nội.").openPopup();
+
+    // Thanh tìm kiếm địa điểm
+    var geocoder = L.Control.geocoder({
+        defaultMarkGeocode: false
+    })
+    .on('markgeocode', function(e) {
+        var bbox = e.geocode.bbox;
+        var poly = L.polygon([
+            bbox.getSouthEast(),
+            bbox.getNorthEast(),
+            bbox.getNorthWest(),
+            bbox.getSouthWest()
+        ]).addTo(map);
+        map.fitBounds(poly.getBounds());
+        poly.bindPopup('<b>' + e.geocode.name + '</b>').openPopup();
+    })
+    .addTo(map);
+
+    // Biến lưu layer tải lên
+    var uploadedLayer;
+
+    // Hàm xử lý file
+    function handleFile(file) {
+        if (uploadedLayer) {
+            map.removeLayer(uploadedLayer);
+        }
+
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            var fileName = file.name.toLowerCase();
+            var content = e.target.result;
+
+            if (fileName.endsWith('.geojson') || fileName.endsWith('.json')) {
+                uploadedLayer = L.geoJSON(JSON.parse(content), {
+                    onEachFeature: function(feature, layer) {
+                        var props = feature.properties;
+                        var popup = "<b>Thuộc tính:</b><br>";
+                        for (var key in props) {
+                            popup += `${key}: ${props[key]}<br>`;
+                        }
+                        layer.bindPopup(popup);
+                    }
+                }).addTo(map);
+                map.fitBounds(uploadedLayer.getBounds());
+
+            } else if (fileName.endsWith('.kml') || fileName.endsWith('.gpx')) {
+                uploadedLayer = omnivore[fileName.endsWith('.kml') ? 'kml' : 'gpx'].parse(content).on('ready', function() {
+                    map.fitBounds(uploadedLayer.getBounds());
+                    uploadedLayer.eachLayer(function(layer) {
+                        if (layer.feature && layer.feature.properties) {
+                            var props = layer.feature.properties;
+                            var popup = "<b>Thuộc tính:</b><br>";
+                            for (var key in props) {
+                                popup += `${key}: ${props[key]}<br>`;
+                            }
+                            layer.bindPopup(popup);
+                        }
+                    });
+                }).addTo(map);
+            } else {
+                alert("Chỉ hỗ trợ file: .geojson, .json, .kml, .gpx");
+            }
         };
-        L.control.layers(baseMaps).addTo(map);
+        reader.readAsText(file);
+    }
 
-        // Marker mẫu
-        var marker = L.marker([21.0285, 105.8544]).addTo(map);
-        marker.bindPopup("<b>Chào bạn!</b><br>Đây là Hà Nội.").openPopup();
+    // Xử lý Drag & Drop
+    var dropZone = document.getElementById('dropZone');
 
-        // Thanh tìm kiếm địa điểm
-        var geocoder = L.Control.geocoder({
-            defaultMarkGeocode: false
-        })
-        .on('markgeocode', function(e) {
-            var bbox = e.geocode.bbox;
-            var poly = L.polygon([
-                bbox.getSouthEast(),
-                bbox.getNorthEast(),
-                bbox.getNorthWest(),
-                bbox.getSouthWest()
-            ]).addTo(map);
-            map.fitBounds(poly.getBounds());
-            poly.bindPopup('<b>' + e.geocode.name + '</b>').openPopup();
-        })
-        .addTo(map);
-    </script>
+    dropZone.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        dropZone.style.borderColor = 'green';
+    });
+
+    dropZone.addEventListener('dragleave', function() {
+        dropZone.style.borderColor = '#666';
+    });
+
+    dropZone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        dropZone.style.borderColor = '#666';
+        var file = e.dataTransfer.files[0];
+        handleFile(file);
+    });
+</script>
+
 </body>
 </html>
