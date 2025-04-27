@@ -1,9 +1,8 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebGIS với Tìm kiếm & Thêm Layer GeoJSON</title>
+    <title>Simple WebGIS with Layers and Search</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
     <style>
@@ -14,61 +13,51 @@
     </style>
 </head>
 <body>
-    <div id="map"></div>
 
-    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-    <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
-    <script src="https://unpkg.com/leaflet-omnivore/dist/leaflet-omnivore.min.js"></script>  <!-- Thêm thư viện Omnivore cho KML -->
+<div id="map"></div>
 
-    <script>
-        // Khởi tạo bản đồ
-        var map = L.map('map').setView([21.0285, 105.8544], 13);
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
 
-        // Lớp nền OpenStreetMap
-        var osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors'
-        });
+<script>
+    // Khởi tạo bản đồ
+    var map = L.map('map').setView([21.0285, 105.8542], 13);
 
-        // Thêm lớp mặc định
-        osm.addTo(map);
+    // Các lớp nền
+    var osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+    });
 
-        // Layer Control
-        var baseMaps = {
-            "OpenStreetMap": osm
-        };
-        L.control.layers(baseMaps).addTo(map);
+    var cartoLight = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; CartoDB'
+    });
 
-        // Thêm thanh tìm kiếm địa điểm
-        var geocoder = L.Control.geocoder({
-            defaultMarkGeocode: false
-        })
-        .on('markgeocode', function(e) {
-            var bbox = e.geocode.bbox;
-            var poly = L.polygon([
-                bbox.getSouthEast(),
-                bbox.getNorthEast(),
-                bbox.getNorthWest(),
-                bbox.getSouthWest()
-            ]).addTo(map);
-            map.fitBounds(poly.getBounds());
-            poly.bindPopup('<b>' + e.geocode.name + '</b>').openPopup();
-        })
-        .addTo(map);
+    var cartoDark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; CartoDB'
+    });
 
-        // Thêm file GeoJSON vào bản đồ
-        var geojsonLayer = L.geoJSON(null, {
-            onEachFeature: function (feature, layer) {
-                if (feature.properties && feature.properties.name) {
-                    layer.bindPopup(feature.properties.name);
-                }
-            }
-        }).addTo(map);
+    osm.addTo(map); // mặc định là OpenStreetMap
 
-        // Tải file GeoJSON từ URL hoặc file địa phương
-        fetch('data.geojson')  // Thay 'data.geojson' với đường dẫn tới file của bạn
-            .then(response => response.json())
-            .then(data => geojsonLayer.addData(data))
-            .catch(error => console.log('Lỗi khi tải GeoJSON:', error));
-    </script>
+    // Layer control
+    var baseMaps = {
+        "OpenStreetMap": osm,
+        "Carto Light": cartoLight,
+        "Carto Dark": cartoDark
+    };
+
+    L.control.layers(baseMaps).addTo(map);
+
+    // Thêm marker mặc định
+    var marker = L.marker([21.0285, 105.8542]).addTo(map)
+        .bindPopup('Xin chào! Đây là Hà Nội.')
+        .openPopup();
+
+    // Thêm chức năng tìm kiếm
+    L.Control.geocoder({
+        defaultMarkGeocode: true
+    }).addTo(map);
+
+</script>
+
 </body>
 </html>
