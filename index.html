@@ -2,18 +2,22 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>WebGIS with Layers, Search, and GeoJSON</title>
+    <title>WebGIS Upload GeoJSON</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
     <style>
         #map {
-            height: 100vh;
+            height: 90vh;
             width: 100%;
+        }
+        #upload {
+            margin: 10px;
         }
     </style>
 </head>
 <body>
 
+<input type="file" id="upload" accept=".geojson,application/json">
 <div id="map"></div>
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
@@ -26,7 +30,7 @@
     // Các lớp nền
     var osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap contributors'
-    });
+    }).addTo(map);
 
     var cartoLight = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; CartoDB'
@@ -36,64 +40,62 @@
         attribution: '&copy; CartoDB'
     });
 
-    osm.addTo(map); // mặc định OSM
-
-    // Thêm chức năng tìm kiếm
-    L.Control.geocoder({
-        defaultMarkGeocode: true
-    }).addTo(map);
-
-    // Thêm marker
-    var marker = L.marker([21.0285, 105.8542]).addTo(map)
-        .bindPopup('Xin chào! Đây là Hà Nội.')
-        .openPopup();
-
-    // Dữ liệu GeoJSON (ví dụ một khu vực nhỏ ở Hà Nội)
-    var myGeoJSON = {
-        "type": "Feature",
-        "properties": {
-            "name": "Khu vực mẫu"
-        },
-        "geometry": {
-            "type": "Polygon",
-            "coordinates": [
-                [
-                    [105.8500, 21.0300],
-                    [105.8550, 21.0300],
-                    [105.8550, 21.0350],
-                    [105.8500, 21.0350],
-                    [105.8500, 21.0300]
-                ]
-            ]
-        }
-    };
-
-    var geoJsonLayer = L.geoJSON(myGeoJSON, {
-        style: {
-            color: 'blue',
-            weight: 2,
-            fillColor: 'lightblue',
-            fillOpacity: 0.5
-        },
-        onEachFeature: function (feature, layer) {
-            if (feature.properties && feature.properties.name) {
-                layer.bindPopup(feature.properties.name);
-            }
-        }
-    }).addTo(map);
-
-    // Control chọn lớp
     var baseMaps = {
         "OpenStreetMap": osm,
         "Carto Light": cartoLight,
         "Carto Dark": cartoDark
     };
 
-    var overlayMaps = {
-        "Vùng GeoJSON": geoJsonLayer
-    };
+    var overlayMaps = {};
 
-    L.control.layers(baseMaps, overlayMaps).addTo(map);
+    var layerControl = L.control.layers(baseMaps, overlayMaps).addTo(map);
+
+    // Tìm kiếm địa điểm
+    L.Control.geocoder({
+        defaultMarkGeocode: true
+    }).addTo(map);
+
+    // Biến lưu layer GeoJSON tải lên
+    var uploadedLayer;
+
+    // Sự kiện khi upload file
+    document.getElementById('upload').addEventListener('change', function(event) {
+        var file = event.target.files[0];
+        if (file) {
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                var geojsonData = JSON.parse(e.target.result);
+
+                // Nếu đã có layer cũ thì xóa trước
+                if (uploadedLayer) {
+                    map.removeLayer(uploadedLayer);
+                    layerControl.removeLayer(uploadedLayer);
+                }
+
+                // Thêm layer mới
+                uploadedLayer = L.geoJSON(geojsonData, {
+                    style: {
+                        color: 'red',
+                        weight: 2,
+                        fillColor: 'orange',
+                        fillOpacity: 0.5
+                    },
+                    onEachFeature: function(feature, layer) {
+                        if (feature.properties && feature.properties.name) {
+                            layer.bindPopup(feature.properties.name);
+                        }
+                    }
+                }).addTo(map);
+
+                // Fit map theo layer mới
+                map.fitBounds(uploadedLayer.getBounds());
+
+                // Thêm vào control
+                layerControl.addOverlay(uploadedLayer, "Lớp GeoJSON Tải Lên");
+            };
+            reader.readAsText(file);
+        }
+    });
 
 </script>
 
