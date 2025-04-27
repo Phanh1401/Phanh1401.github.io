@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Simple WebGIS with Layers and Search</title>
+    <title>WebGIS with Layers, Search, and GeoJSON</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
     <style>
@@ -36,26 +36,64 @@
         attribution: '&copy; CartoDB'
     });
 
-    osm.addTo(map); // mặc định là OpenStreetMap
+    osm.addTo(map); // mặc định OSM
 
-    // Layer control
+    // Thêm chức năng tìm kiếm
+    L.Control.geocoder({
+        defaultMarkGeocode: true
+    }).addTo(map);
+
+    // Thêm marker
+    var marker = L.marker([21.0285, 105.8542]).addTo(map)
+        .bindPopup('Xin chào! Đây là Hà Nội.')
+        .openPopup();
+
+    // Dữ liệu GeoJSON (ví dụ một khu vực nhỏ ở Hà Nội)
+    var myGeoJSON = {
+        "type": "Feature",
+        "properties": {
+            "name": "Khu vực mẫu"
+        },
+        "geometry": {
+            "type": "Polygon",
+            "coordinates": [
+                [
+                    [105.8500, 21.0300],
+                    [105.8550, 21.0300],
+                    [105.8550, 21.0350],
+                    [105.8500, 21.0350],
+                    [105.8500, 21.0300]
+                ]
+            ]
+        }
+    };
+
+    var geoJsonLayer = L.geoJSON(myGeoJSON, {
+        style: {
+            color: 'blue',
+            weight: 2,
+            fillColor: 'lightblue',
+            fillOpacity: 0.5
+        },
+        onEachFeature: function (feature, layer) {
+            if (feature.properties && feature.properties.name) {
+                layer.bindPopup(feature.properties.name);
+            }
+        }
+    }).addTo(map);
+
+    // Control chọn lớp
     var baseMaps = {
         "OpenStreetMap": osm,
         "Carto Light": cartoLight,
         "Carto Dark": cartoDark
     };
 
-    L.control.layers(baseMaps).addTo(map);
+    var overlayMaps = {
+        "Vùng GeoJSON": geoJsonLayer
+    };
 
-    // Thêm marker mặc định
-    var marker = L.marker([21.0285, 105.8542]).addTo(map)
-        .bindPopup('Xin chào! Đây là Hà Nội.')
-        .openPopup();
-
-    // Thêm chức năng tìm kiếm
-    L.Control.geocoder({
-        defaultMarkGeocode: true
-    }).addTo(map);
+    L.control.layers(baseMaps, overlayMaps).addTo(map);
 
 </script>
 
