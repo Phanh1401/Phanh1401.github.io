@@ -1,132 +1,120 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-<title>WebGIS Q2 midterm2 of 2106080014. Study area: Krong Buk, Dak Lak</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-  <style>
-    body, html { margin: 0; padding: 0; height: 100%; }
-    #map { height: 100%; }
-    #upload {
-      position: absolute;
-      top: 10px;
-      left: 50px;
-      z-index: 1000;
-      background: white;
-      padding: 8px;
-      border-radius: 4px;
-      box-shadow: 0 0 5px rgba(0,0,0,0.5);
-    }
-    #legend {
-  position: absolute;
-  top: 70px;
-  right: 10px;
-  z-index: 1000;
-  background: white;
-  padding: 8px;
-  font-size: 14px;
-  border-radius: 4px;
-  box-shadow: 0 0 5px rgba(0,0,0,0.5);
-}
-    .label-text {
-      font-size: 12px;
-      font-weight: bold;
-      color: black;
-      text-shadow: 1px 1px 2px white;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <title>WebGIS Q2 midterm2 of 2106080014. Study area: Krong Buk, Dak Lak</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style>
+        body, html { margin: 0; padding: 0; height: 100%; }
+        #map { width: 100%; height: 100vh; }
+        #controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+            background: white;
+            padding: 10px;
+            border-radius: 4px;
+            box-shadow: 0 0 5px rgba(0,0,0,0.5);
+        }
+        #legend {
+            position: absolute;
+            top: 70px;
+            right: 10px;
+            z-index: 1000;
+            background: white;
+            padding: 8px;
+            font-size: 14px;
+            border-radius: 4px;
+            box-shadow: 0 0 5px rgba(0,0,0,0.5);
+        }
+    </style>
 </head>
 <body>
 
-<div id="upload">
-  <input type="file" id="fileInput" accept=".geojson" />
-  <br><br>
-  <label for="attributeSelect">Chọn thuộc tính tô màu:</label>
-  <select id="attributeSelect" disabled>
-    <option value="">-- Chưa có GeoJSON --</option>
-  </select>
-  <br><br>
-  <label for="labelSelect">Chọn thuộc tính làm label:</label>
-  <select id="labelSelect" disabled>
-    <option value="">-- Chưa có GeoJSON --</option>
-  </select>
+<div id="controls">
+    <input type="file" id="fileInput" accept=".geojson" />
+    <br><br>
+    <label for="attributeSelect">Thuộc tính màu sắc:</label>
+    <select id="attributeSelect" disabled></select>
+    <br><br>
+    <label for="labelSelect">Thuộc tính nhãn:</label>
+    <select id="labelSelect" disabled></select>
 </div>
 
 <div id="map"></div>
-<div id="legend" style="display:none;"></div>
+<div id="legend"><b>Chú thích màu sắc</b><br><div id="legendContent"></div></div>
 
-<!-- Leaflet -->
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-<!-- Geocoder -->
-<script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
 
 <script>
-var map = L.map('map').setView([21.0285, 105.8542], 6);
+var map = L.map('map').setView([12.8, 108.2], 10);
 
-// Bản đồ nền
-var osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-  attribution: '© OpenStreetMap contributors'
+var baseLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors'
 }).addTo(map);
-
-var baseMaps = {
-  "OpenStreetMap": osm
-};
-
-L.control.layers(baseMaps).addTo(map);
-L.Control.geocoder().addTo(map);
 
 var geojsonLayer;
 var labelLayer;
 var uploadedGeoJSON;
 
-// Hàm lấy màu theo giá trị
-function getColor(d, breaks) {
-  return d > breaks[4] ? '#800026' :
-         d > breaks[3] ? '#BD0026' :
-         d > breaks[2] ? '#E31A1C' :
-         d > breaks[1] ? '#FC4E2A' :
-         d > breaks[0] ? '#FD8D3C' :
-                         '#FEB24C';
-}
+// Load sẵn file Krong_Buk_GEOJSON.geojson
+fetch('Krong_Buk_GEOJSON.geojson')
+  .then(response => response.json())
+  .then(data => {
+    uploadedGeoJSON = data;
+    loadGeoJSON(data);
+  });
 
-// Hàm update legend
-function updateLegend(breaks, attribute) {
-  var legend = document.getElementById('legend');
-  legend.innerHTML = `<b>${attribute}</b><br>`;
-  for (var i = 0; i < breaks.length; i++) {
-    var from = breaks[i];
-    var to = breaks[i + 1];
-    if (to) {
-      legend.innerHTML +=
-        `<i style="background:${getColor(from + 1, breaks)};width:18px;height:18px;display:inline-block;margin-right:5px;"></i> ${from} – ${to}<br>`;
-    }
-  }
-  legend.style.display = 'block';
-}
-
-// Tải file GeoJSON
 document.getElementById('fileInput').addEventListener('change', function(e) {
-  var file = e.target.files[0];
-  if (file) {
+    var file = e.target.files[0];
+    if (!file) return;
+
     var reader = new FileReader();
     reader.onload = function(e) {
-      var contents = e.target.result;
-      var geojson = JSON.parse(contents);
-      uploadedGeoJSON = geojson;
+        var geojson = JSON.parse(e.target.result);
+        uploadedGeoJSON = geojson;
+        loadGeoJSON(geojson);
+    };
+    reader.readAsText(file);
+});
 
-      // Cập nhật dropdown thuộc tính
-      var attributes = [];
-      if (geojson.features.length > 0) {
+function loadGeoJSON(geojson) {
+    if (geojsonLayer) map.removeLayer(geojsonLayer);
+    if (labelLayer) map.removeLayer(labelLayer);
+
+    geojsonLayer = L.geoJSON(geojson, {
+        style: {
+            color: 'blue',
+            weight: 1,
+            fillOpacity: 0.5
+        },
+        onEachFeature: function (feature, layer) {
+            let popupContent = "";
+            for (const key in feature.properties) {
+                popupContent += `<b>${key}</b>: ${feature.properties[key]}<br>`;
+            }
+            layer.bindPopup(popupContent);
+        }
+    }).addTo(map);
+
+    map.fitBounds(geojsonLayer.getBounds());
+    updateAttributeSelectors(geojson);
+}
+
+function updateAttributeSelectors(geojson) {
+    var attributes = [];
+    if (geojson.features.length > 0) {
         attributes = Object.keys(geojson.features[0].properties);
-      }
+    }
 
-      var attrSelect = document.getElementById('attributeSelect');
-      var labelSelect = document.getElementById('labelSelect');
+    var attrSelect = document.getElementById('attributeSelect');
+    var labelSelect = document.getElementById('labelSelect');
 
-      attrSelect.innerHTML = '<option value="">--Chọn thuộc tính--</option>';
-      labelSelect.innerHTML = '<option value="">--Chọn thuộc tính--</option>';
+    attrSelect.innerHTML = '<option value="">--Chọn thuộc tính--</option>';
+    labelSelect.innerHTML = '<option value="">--Chọn thuộc tính--</option>';
 
-      attributes.forEach(attr => {
+    attributes.forEach(attr => {
         var option1 = document.createElement('option');
         option1.value = attr;
         option1.textContent = attr;
@@ -136,100 +124,87 @@ document.getElementById('fileInput').addEventListener('change', function(e) {
         option2.value = attr;
         option2.textContent = attr;
         labelSelect.appendChild(option2);
-      });
-
-      attrSelect.disabled = false;
-      labelSelect.disabled = false;
-
-      // Vẽ ban đầu (không style gì cả)
-      if (geojsonLayer) {
-        map.removeLayer(geojsonLayer);
-      }
-      if (labelLayer) {
-        map.removeLayer(labelLayer);
-      }
-
-      geojsonLayer = L.geoJSON(geojson, {
-        style: { color: 'blue', weight: 1, fillOpacity: 0.3 }
-      }).addTo(map);
-      map.fitBounds(geojsonLayer.getBounds());
-    };
-    reader.readAsText(file);
-  }
-});
-
-// Khi chọn thuộc tính để tô màu hoặc label
-document.getElementById('attributeSelect').addEventListener('change', updateMap);
-document.getElementById('labelSelect').addEventListener('change', updateMap);
-
-function updateMap() {
-  var attr = document.getElementById('attributeSelect').value;
-  var labelAttr = document.getElementById('labelSelect').value;
-  if (!uploadedGeoJSON) return;
-
-  if (geojsonLayer) {
-    map.removeLayer(geojsonLayer);
-  }
-  if (labelLayer) {
-    map.removeLayer(labelLayer);
-  }
-
-  // Nếu chọn thuộc tính tô màu
-  var styleFunc = function() { return {}; };
-  var breaks = [];
-
-  if (attr) {
-    var values = uploadedGeoJSON.features.map(f => Number(f.properties[attr])).filter(v => !isNaN(v));
-    values.sort((a,b) => a-b);
-    breaks = [
-      values[Math.floor(values.length*0.2)] || 0,
-      values[Math.floor(values.length*0.4)] || 0,
-      values[Math.floor(values.length*0.6)] || 0,
-      values[Math.floor(values.length*0.8)] || 0,
-      values[values.length-1] || 0
-    ];
-    styleFunc = function(feature) {
-      var val = Number(feature.properties[attr]);
-      return {
-        fillColor: getColor(val, breaks),
-        weight: 1,
-        color: 'white',
-        fillOpacity: 0.7
-      };
-    };
-    updateLegend(breaks, attr);
-  } else {
-    document.getElementById('legend').style.display = 'none';
-  }
-
-  geojsonLayer = L.geoJSON(uploadedGeoJSON, {
-    style: styleFunc,
-    onEachFeature: function (feature, layer) {
-      let popupContent = "";
-      for (const key in feature.properties) {
-        popupContent += `<b>${key}</b>: ${feature.properties[key]}<br>`;
-      }
-      layer.bindPopup(popupContent);
-    }
-  }).addTo(map);
-
-  // Nếu chọn thuộc tính để làm label
-  if (labelAttr) {
-    labelLayer = L.geoJSON(uploadedGeoJSON, {
-      onEachFeature: function (feature, layer) {
-        if (feature.properties && feature.geometry.type === "Polygon" || feature.geometry.type === "MultiPolygon") {
-          var center = layer.getBounds().getCenter();
-          var label = L.marker(center, {
-            icon: L.divIcon({
-              className: 'label-text',
-              html: feature.properties[labelAttr],
-              iconSize: [100, 20]
-            })
-          }).addTo(map);
-        }
-      }
     });
-  }
+
+    attrSelect.disabled = false;
+    labelSelect.disabled = false;
+
+    attrSelect.addEventListener('change', applyGraduatedSymbology);
+    labelSelect.addEventListener('change', applyLabeling);
+}
+
+function applyGraduatedSymbology() {
+    var selectedAttr = document.getElementById('attributeSelect').value;
+    if (!selectedAttr) return;
+
+    if (geojsonLayer) map.removeLayer(geojsonLayer);
+
+    var values = uploadedGeoJSON.features.map(f => parseFloat(f.properties[selectedAttr])).filter(v => !isNaN(v));
+    var min = Math.min(...values);
+    var max = Math.max(...values);
+    var range = max - min;
+
+    function getColor(d) {
+        var pct = (d - min) / range;
+        return pct > 0.8 ? '#800026' :
+               pct > 0.6 ? '#BD0026' :
+               pct > 0.4 ? '#E31A1C' :
+               pct > 0.2 ? '#FC4E2A' :
+                           '#FD8D3C';
+    }
+
+    geojsonLayer = L.geoJSON(uploadedGeoJSON, {
+        style: function(feature) {
+            var value = parseFloat(feature.properties[selectedAttr]);
+            return {
+                fillColor: getColor(value),
+                color: 'black',
+                weight: 1,
+                fillOpacity: 0.7
+            };
+        },
+        onEachFeature: function (feature, layer) {
+            let popupContent = "";
+            for (const key in feature.properties) {
+                popupContent += `<b>${key}</b>: ${feature.properties[key]}<br>`;
+            }
+            layer.bindPopup(popupContent);
+        }
+    }).addTo(map);
+
+    map.fitBounds(geojsonLayer.getBounds());
+    updateLegend();
+}
+
+function applyLabeling() {
+    var selectedAttr = document.getElementById('labelSelect').value;
+    if (!selectedAttr) return;
+
+    if (labelLayer) map.removeLayer(labelLayer);
+
+    labelLayer = L.geoJSON(uploadedGeoJSON, {
+        onEachFeature: function(feature, layer) {
+            var labelText = feature.properties[selectedAttr];
+            if (labelText) {
+                layer.bindTooltip(labelText.toString(), {
+                    permanent: true,
+                    direction: "center",
+                    className: "feature-label"
+                }).openTooltip();
+            }
+        }
+    }).addTo(map);
+}
+
+function updateLegend() {
+    var legendContent = document.getElementById('legendContent');
+    legendContent.innerHTML = `
+        <i style="background:#800026;width:20px;height:10px;display:inline-block"></i> >80%<br>
+        <i style="background:#BD0026;width:20px;height:10px;display:inline-block"></i> 60%-80%<br>
+        <i style="background:#E31A1C;width:20px;height:10px;display:inline-block"></i> 40%-60%<br>
+        <i style="background:#FC4E2A;width:20px;height:10px;display:inline-block"></i> 20%-40%<br>
+        <i style="background:#FD8D3C;width:20px;height:10px;display:inline-block"></i> 0%-20%<br>
+    `;
 }
 </script>
 
