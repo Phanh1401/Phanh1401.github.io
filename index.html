@@ -2,46 +2,100 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>WebGIS Full Options</title>
+  <title>WebGIS với Graduated Symbology và Label</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
   <style>
     body, html { margin: 0; padding: 0; height: 100%; }
-    #map { height: 90vh; width: 100%; }
-    #controls {
-      padding: 10px;
-      background: #f9f9f9;
-      box-shadow: 0px 2px 5px rgba(0,0,0,0.2);
-    }
-    .control-group { margin-bottom: 8px; }
-    .legend {
+    #map { height: 100%; }
+    #upload {
+      position: absolute;
+      top: 10px;
+      left: 50px;
+      z-index: 1000;
       background: white;
-      padding: 10px;
-      line-height: 1.5em;
-      color: #333;
+      padding: 8px;
+      border-radius: 4px;
+      box-shadow: 0 0 5px rgba(0,0,0,0.5);
+    }
+    #legend {
+      position: absolute;
+      bottom: 30px;
+      right: 10px;
+      z-index: 1000;
+      background: white;
+      padding: 8px;
       font-size: 14px;
-      border-radius: 5px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.3);
+      border-radius: 4px;
+      box-shadow: 0 0 5px rgba(0,0,0,0.5);
+    }
+    .label-text {
+      font-size: 12px;
+      font-weight: bold;
+      color: black;
+      text-shadow: 1px 1px 2px white;
     }
   </style>
 </head>
 <body>
 
-<div id="controls">
-  <input type="file" id="upload" accept=".geojson,application/json">
-  <div class="control-group">
-    <label>Stroke Color:</label>
-    <input type="color" id="strokeColor" value="#ff0000">
-    <label>Fill Color:</label>
-    <input type="color" id="fillColor" value="#ffa500">
-  </div>
-  <div class="control-group">
-    <label>Stroke Weight:</label>
-    <input type="number" id="strokeWeight" value="2" min="1" max="10">
-    <label>Fill Opacity:</label>
-    <input type="number" id="fillOpacity" value="0.5" step="0.1" min="0" max="1">
-  </div>
-  <button id="applyStyle">Áp dụng Style</button>
+<div id="upload">
+  <input type="file" id="fileInput" accept=".geojson" />
+  <br><br>
+  <label for="attributeSelect">Chọn thuộc tính tô màu:</label>
+  <select id="attributeSelect">
+    <option value="">-- Chưa có GeoJSON --</option>
+  </select>
+  <br><br>
+  <label for="labelSelect">Chọn thuộc tính làm label:</label>
+  <select id="labelSelect">
+    <option value="">-- Chưa có GeoJSON --</option>
+  </select>
 </div>
 
-<div id="map"><
+<div id="map"></div>
+<div id="legend" style="display:none;"></div>
+
+<!-- Leaflet -->
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<!-- Geocoder -->
+<script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+
+<script>
+var map = L.map('map').setView([21.0285, 105.8542], 13);
+
+// Bản đồ nền
+var osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© OpenStreetMap contributors'
+}).addTo(map);
+
+var cartoLight = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+  attribution: '© CartoDB'
+});
+
+var baseMaps = {
+  "OpenStreetMap": osm,
+  "Carto Light": cartoLight
+};
+
+L.control.layers(baseMaps).addTo(map);
+L.Control.geocoder().addTo(map);
+
+var geojsonLayer;
+var labelLayer;
+var uploadedGeoJSON;
+
+// Hàm lấy màu theo giá trị
+function getColor(d, breaks) {
+  return d > breaks[4] ? '#800026' :
+         d > breaks[3] ? '#BD0026' :
+         d > breaks[2] ? '#E31A1C' :
+         d > breaks[1] ? '#FC4E2A' :
+         d > breaks[0] ? '#FD8D3C' :
+                         '#FEB24C';
+}
+
+// Hàm update legend
+function updateLegend(breaks, attribute) {
+  var legend = document.getElementById('legend');
+  legend.innerHTML = `<b>${attribute}</b><br>`;
+  for (var i = 0; i < breaks.len
