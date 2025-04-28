@@ -1,103 +1,47 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>WebGIS Upload GeoJSON</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
-    <style>
-        #map {
-            height: 90vh;
-            width: 100%;
-        }
-        #upload {
-            margin: 10px;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <title>WebGIS Full Options</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+  <style>
+    body, html { margin: 0; padding: 0; height: 100%; }
+    #map { height: 90vh; width: 100%; }
+    #controls {
+      padding: 10px;
+      background: #f9f9f9;
+      box-shadow: 0px 2px 5px rgba(0,0,0,0.2);
+    }
+    .control-group { margin-bottom: 8px; }
+    .legend {
+      background: white;
+      padding: 10px;
+      line-height: 1.5em;
+      color: #333;
+      font-size: 14px;
+      border-radius: 5px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.3);
+    }
+  </style>
 </head>
 <body>
 
-<input type="file" id="upload" accept=".geojson,application/json">
-<div id="map"></div>
+<div id="controls">
+  <input type="file" id="upload" accept=".geojson,application/json">
+  <div class="control-group">
+    <label>Stroke Color:</label>
+    <input type="color" id="strokeColor" value="#ff0000">
+    <label>Fill Color:</label>
+    <input type="color" id="fillColor" value="#ffa500">
+  </div>
+  <div class="control-group">
+    <label>Stroke Weight:</label>
+    <input type="number" id="strokeWeight" value="2" min="1" max="10">
+    <label>Fill Opacity:</label>
+    <input type="number" id="fillOpacity" value="0.5" step="0.1" min="0" max="1">
+  </div>
+  <button id="applyStyle">Áp dụng Style</button>
+</div>
 
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-<script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
-
-<script>
-    // Khởi tạo bản đồ
-    var map = L.map('map').setView([21.0285, 105.8542], 13);
-
-    // Các lớp nền
-    var osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(map);
-
-    var cartoLight = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; CartoDB'
-    });
-
-    var cartoDark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; CartoDB'
-    });
-
-    var baseMaps = {
-        "OpenStreetMap": osm,
-        "Carto Light": cartoLight,
-        "Carto Dark": cartoDark
-    };
-
-    var overlayMaps = {};
-
-    var layerControl = L.control.layers(baseMaps, overlayMaps).addTo(map);
-
-    // Tìm kiếm địa điểm
-    L.Control.geocoder({
-        defaultMarkGeocode: true
-    }).addTo(map);
-
-    // Biến lưu layer GeoJSON tải lên
-    var uploadedLayer;
-
-    // Sự kiện khi upload file
-    document.getElementById('upload').addEventListener('change', function(event) {
-        var file = event.target.files[0];
-        if (file) {
-            var reader = new FileReader();
-            reader.onload = function(e) {
-                var geojsonData = JSON.parse(e.target.result);
-
-                // Nếu đã có layer cũ thì xóa trước
-                if (uploadedLayer) {
-                    map.removeLayer(uploadedLayer);
-                    layerControl.removeLayer(uploadedLayer);
-                }
-
-                // Thêm layer mới
-                uploadedLayer = L.geoJSON(geojsonData, {
-                    style: {
-                        color: 'red',
-                        weight: 2,
-                        fillColor: 'orange',
-                        fillOpacity: 0.5
-                    },
-                    onEachFeature: function(feature, layer) {
-                        if (feature.properties && feature.properties.name) {
-                            layer.bindPopup(feature.properties.name);
-                        }
-                    }
-                }).addTo(map);
-
-                // Fit map theo layer mới
-                map.fitBounds(uploadedLayer.getBounds());
-
-                // Thêm vào control
-                layerControl.addOverlay(uploadedLayer, "Lớp GeoJSON Tải Lên");
-            };
-            reader.readAsText(file);
-        }
-    });
-
-</script>
-
-</body>
-</html>
+<div id="map"><
